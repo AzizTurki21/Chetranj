@@ -21,19 +21,70 @@ export const GameRoom: React.FC = () => {
   } = useGame();
   
   const [copied, setCopied] = useState(false);
-  // If user joins via URL directly
+  
+  // --- CLICK TO MOVE STATE ---
+  const [moveFrom, setMoveFrom] = useState<string | null>(null);
+  const [optionSquares, setOptionSquares] = useState({});
+
   useEffect(() => {
     if (roomId) {
       joinRoom(roomId);
     }
-  }, [roomId]); // run once
+  }, [roomId]);
 
-  function onDrop(sourceSquare: string, targetSquare: string) {
-    // If it's not my turn and I have a color selected, prevent move
-    if (color && turn !== color && status !== 'finished') return false;
-    // Local hotseat allows any move if color is null (or just testing)
+  // Logic to calculate and show the "blurry dots"
+  function getMoveOptions(square: string) {
+    const moves = game.moves({
+      square: square as any,
+      verbose: true,
+    });
+    if (moves.length === 0) {
+      setOptionSquares({});
+      return false;
+    }
+
+    const newSquares: any = {};
+    moves.map((move) => {
+      newSquares[move.to] = {
+        background: "radial-gradient(circle, rgba(0,0,0,.2) 20%, transparent 20%)",
+        borderRadius: "50%",
+      };
+      return move;
+    });
+    // Highlight the selected piece square
+    newSquares[square] = { background: "rgba(255, 255, 0, 0.4)" };
+    setOptionSquares(newSquares);
+    return true;
+  }
+
+  function onSquareClick(square: string) {
+    // Prevent moving if it's not the player's turn
+    if (color && turn !== color) return;
+    if (status === 'finished' || game.isGameOver()) return;
+
+    // 1. If no piece is selected, try to select one
+    if (!moveFrom) {
+      const hasOptions = getMoveOptions(square);
+      if (hasOptions) setMoveFrom(square);
+      return;
+    }
+
+    // 2. If a piece is selected, try to move
+    const moveSuccess = makeMove(moveFrom, square);
     
-    return makeMove(sourceSquare, targetSquare);
+    if (moveSuccess) {
+      setMoveFrom(null);
+      setOptionSquares({});
+    } else {
+      // If move failed, check if user clicked another of their own pieces to switch selection
+      const hasOptions = getMoveOptions(square);
+      if (hasOptions) {
+        setMoveFrom(square);
+      } else {
+        setMoveFrom(null);
+        setOptionSquares({});
+      }
+    }
   }
 
   const copyLink = () => {
@@ -42,7 +93,6 @@ export const GameRoom: React.FC = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const isCheck = game.inCheck();
   const isGameOver = game.isGameOver();
 
   return (
@@ -84,7 +134,7 @@ export const GameRoom: React.FC = () => {
                 {turn === 'w' ? 'White' : 'Black'}'s Turn
                 <span className={`w-3 h-3 rounded-full ${turn === 'w' ? 'bg-white' : 'bg-black border border-white'}`} />
               </h2>
-              {isCheck && <p className="text-red-400 font-bold animate-pulse">CHECK!</p>}
+              {game.inCheck() && <p className="text-red-400 font-bold animate-pulse">CHECK!</p>}
             </div>
           )}
         </div>
@@ -93,36 +143,35 @@ export const GameRoom: React.FC = () => {
       {/* Main Table Area */}
       <div className="relative flex items-center justify-center w-full h-[600px] mt-16">
         
-        {/* Left Side: Cigarettes */}
         <div className="hidden lg:block absolute left-10 bottom-20 z-10 transform -rotate-12 hover:scale-105 transition-transform duration-300">
            <CigarettePack />
         </div>
 
-        {/* The Board */}
+        {/* The Board with orientation fix and dots */}
         <div className="relative z-0 shadow-2xl shadow-black/50 border-[16px] border-[#3e2723] rounded-lg">
           <div className="w-[350px] h-[350px] md:w-[500px] md:h-[500px]">
-            {(() => {
-              const Board = Chessboard as any;
-              return (
-                <Board 
-                  position={game.fen()} 
-                  onPieceDrop={onDrop}
-                  boardOrientation={color === 'b' ? 'black' : 'white'}
-                  customDarkSquareStyle={{ backgroundColor: '#779556' }}
-                  customLightSquareStyle={{ backgroundColor: '#ebecd0' }}
-                  arePiecesDraggable={!isGameOver}
-                  animationDuration={200}
-                />
-              );
-            })()}
+             {/* Using Type Casting to resolve the TypeScript error you saw */}
+             {(() => {
+                const Board = Chessboard as any;
+                return (
+                  <Board 
+                    position={game.fen()} 
+                    onSquareClick={onSquareClick}
+                    boardOrientation={color === 'b' ? 'black' : 'white'}
+                    customDarkSquareStyle={{ backgroundColor: '#779556' }}
+                    customLightSquareStyle={{ backgroundColor: '#ebecd0' }}
+                    customSquareStyles={optionSquares}
+                    arePiecesDraggable={false} 
+                    animationDuration={300}
+                  />
+                );
+             })()}
           </div>
         </div>
 
-        {/* Right Side: Chicha */}
         <div className="hidden lg:block absolute right-10 bottom-0 z-10">
            <Chicha />
         </div>
-
       </div>
     </div>
   );

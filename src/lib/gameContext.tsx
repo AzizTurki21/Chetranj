@@ -59,12 +59,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
            }
         }
       })
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState();
-        const count = Object.keys(state).length;
-        setOpponentConnected(count > 1);
-        if (count > 1) setStatus('playing');
-      })
+      // 1. Updated Presence Listener
+.on('presence', { event: 'sync' }, () => {
+  const state = channel.presenceState();
+  const presences = Object.keys(state);
+  const count = presences.length;
+  
+  setOpponentConnected(count > 1);
+  if (count > 1) setStatus('playing');
+
+  // CRITICAL: If I am the host and I have a color, 
+  // broadcast it so the newcomer knows what color THEY are.
+  if (count > 1 && color !== null) {
+    channel.send({
+      type: 'broadcast',
+      event: 'color_picked',
+      payload: { playerId, color: color }
+    });
+  }
+})
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({ online_at: new Date().toISOString() });
@@ -84,13 +97,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const joinRoom = async (id: string) => {
-    setRoomId(id);
-    setStatus('waiting'); // Will switch to playing when presence syncs or locally immediately if no backend
-    if (!isSupabaseConfigured()) {
-        setStatus('playing'); // Local hotseat mode
-        setOpponentConnected(true);
-    }
-  };
+  setRoomId(id);
+  // Default to black if joining an existing room, 
+  // it will be corrected by the host's broadcast if necessary
+  if (!color) {
+    setColor('b');
+  }
+  setStatus('waiting');
+  if (!isSupabaseConfigured()) {
+    setStatus('playing');
+    setOpponentConnected(true);
+  }
+};
 
   const pickColor = (c: 'w' | 'b') => {
     setColor(c);
