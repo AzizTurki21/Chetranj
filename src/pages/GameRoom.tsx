@@ -148,26 +148,23 @@ export const GameRoom: React.FC = () => {
         </div>
 
         {/* The Board with orientation fix and dots */}
-        <div className="relative z-0 shadow-2xl shadow-black/50 border-[16px] border-[#3e2723] rounded-lg">
-          <div className="w-[350px] h-[350px] md:w-[500px] md:h-[500px]">
-             {/* Using Type Casting to resolve the TypeScript error you saw */}
-             {(() => {
-                const Board = Chessboard as any;
-                return (
-                  <Board 
-                    position={game.fen()} 
-                    onSquareClick={onSquareClick}
-                    boardOrientation={color === 'b' ? 'black' : 'white'}
-                    customDarkSquareStyle={{ backgroundColor: '#779556' }}
-                    customLightSquareStyle={{ backgroundColor: '#ebecd0' }}
-                    customSquareStyles={optionSquares}
-                    arePiecesDraggable={false} 
-                    animationDuration={300}
-                  />
-                );
-             })()}
-          </div>
-        </div>
+       <div className="w-[350px] h-[350px] md:w-[500px] md:h-[500px]">
+  {(() => {
+    const Board = Chessboard as any;
+    return (
+      <Board 
+        position={game.fen()} 
+        onSquareClick={onSquareClick} // The Click logic
+        boardOrientation={color === 'b' ? 'black' : 'white'} // The POV logic
+        customDarkSquareStyle={{ backgroundColor: '#779556' }}
+        customLightSquareStyle={{ backgroundColor: '#ebecd0' }}
+        customSquareStyles={optionSquares} // The "Blurry Dots"
+        arePiecesDraggable={false} // Disable Dragging
+        animationDuration={300}
+      />
+    );
+  })()}
+</div>
 
         <div className="hidden lg:block absolute right-10 bottom-0 z-10">
            <Chicha />

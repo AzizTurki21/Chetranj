@@ -98,15 +98,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const joinRoom = async (id: string) => {
   setRoomId(id);
-  // Default to black if joining an existing room, 
-  // it will be corrected by the host's broadcast if necessary
+  // This logic is why your friend sees your POV. 
+  // We must force the guest to 'b' if they don't have a color.
   if (!color) {
     setColor('b');
   }
   setStatus('waiting');
   if (!isSupabaseConfigured()) {
-    setStatus('playing');
-    setOpponentConnected(true);
+      setStatus('playing'); 
+      setOpponentConnected(true);
   }
 };
 
