@@ -25,7 +25,7 @@ export const Landing: React.FC = () => {
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-8 animate-fade-in">
       <div className="space-y-2">
         <h1 className="text-6xl font-serif text-amber-500 drop-shadow-lg">Chetranj</h1>
-        <p className="text-xl text-amber-200/80 font-light tracking-wide">Tunisian Café Chess</p>
+        <p className="text-xl text-amber-200/80 font-light tracking-wide">Café du sport</p>
       </div>
 
       <div className="w-full max-w-md space-y-6 bg-black/40 backdrop-blur-sm p-8 rounded-2xl border border-amber-900/30 shadow-2xl">
