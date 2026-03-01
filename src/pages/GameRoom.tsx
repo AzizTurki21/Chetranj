@@ -36,10 +36,12 @@ export const GameRoom: React.FC = () => {
 
   // if we end up here without a colour, force the user back to the picker
   useEffect(() => {
-    if (color === null && roomId) {
+    // only force the picker when there's another player present; we want
+    // to allow solo testing without having to choose a colour.
+    if (color === null && roomId && opponentConnected) {
       navigate(`/room/${roomId}/color`);
     }
-  }, [color, roomId, navigate]);
+  }, [color, roomId, navigate, opponentConnected]);
 
   // Logic to calculate and show the "blurry dots"
   function getMoveOptions(square: string) {
@@ -67,11 +69,16 @@ export const GameRoom: React.FC = () => {
   }
 
   function onSquareClick(square: string) {
-    // don't let a player move until they've been assigned a colour
-    if (!color) return;
-    // Prevent moving if it's not the player's turn
-    if (turn !== color) return;
-    if (status === 'finished' || game.isGameOver()) return;
+    // if there's no opponent, allow the local user to test freely
+    if (!opponentConnected) {
+      // still prevent moves after game over
+      if (status === 'finished' || game.isGameOver()) return;
+    } else {
+      // when another player is connected follow normal colour/turn rules
+      if (!color) return;
+      if (turn !== color) return;
+      if (status === 'finished' || game.isGameOver()) return;
+    }
 
     // 1. If no piece is selected, try to select one
     if (!moveFrom) {
@@ -164,6 +171,7 @@ export const GameRoom: React.FC = () => {
     const Board = Chessboard as any;
     return (
       <Board 
+        key={color ?? 'none'}
         position={game.fen()} 
         onSquareClick={onSquareClick} // The Click logic
         boardOrientation={color === 'b' ? 'black' : 'white'} // The POV logic
