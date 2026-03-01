@@ -4,8 +4,16 @@ import { useGame } from '../lib/gameContext';
 
 export const ColorSelection: React.FC = () => {
   const { roomId } = useParams();
-  const { pickColor } = useGame();
+  const { pickColor, color } = useGame();
   const navigate = useNavigate();
+
+  // if a colour has already been determined (e.g. the host picked white and
+  // broadcasted it), skip the selection screen and go straight to the board.
+  useEffect(() => {
+    if (color !== null && roomId) {
+      navigate(`/room/${roomId}/play`);
+    }
+  }, [color, navigate, roomId]);
 
   const handleSelect = (color: 'w' | 'b') => {
     pickColor(color);

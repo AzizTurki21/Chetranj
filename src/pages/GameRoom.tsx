@@ -58,8 +58,10 @@ export const GameRoom: React.FC = () => {
   }
 
   function onSquareClick(square: string) {
+    // don't let a player move until they've been assigned a colour
+    if (!color) return;
     // Prevent moving if it's not the player's turn
-    if (color && turn !== color) return;
+    if (turn !== color) return;
     if (status === 'finished' || game.isGameOver()) return;
 
     // 1. If no piece is selected, try to select one

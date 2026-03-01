@@ -52,11 +52,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .on('broadcast', { event: 'color_picked' }, ({ payload }) => {
         if (payload.playerId !== playerId) {
-           // Opponent picked color
-           // If they picked white, I am black, etc.
-           if (color === null) {
-              setColor(payload.color === 'w' ? 'b' : 'w');
-           }
+           // Opponent picked a colour; we always take the opposite (even if
+           // our own colour was previously set incorrectly).  This handles the
+           // case where the joining client picked the same colour as the host
+           // before the broadcast arrived.
+           setColor(payload.color === 'w' ? 'b' : 'w');
         }
       })
       // 1. Updated Presence Listener
@@ -98,19 +98,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const joinRoom = async (id: string) => {
   setRoomId(id);
-  // This logic is why your friend sees your POV. 
-  // We must force the guest to 'b' if they don't have a color.
-  if (!color) {
-    setColor('b');
-  }
+  // In multiplayer mode we don't pre‑assign a color to the joining player.
+  // The room owner will pick a colour and broadcast it; the newcomer will
+  // receive the opposite via the realtime listeners.  For local (no
+  // Supabase) we keep the old hotseat behaviour of giving the second player
+  // black so the first player is always white.
   setStatus('waiting');
   if (!isSupabaseConfigured()) {
-      setStatus('playing'); 
+      if (!color) setColor('b'); // second player on the same device
+      setStatus('playing');
       setOpponentConnected(true);
   }
 };
 
   const pickColor = (c: 'w' | 'b') => {
+    // once a colour has been assigned we ignore further requests
+    if (color !== null) return;
+
     setColor(c);
     if (isSupabaseConfigured() && roomId) {
         supabase.channel(`room:${roomId}`).send({
