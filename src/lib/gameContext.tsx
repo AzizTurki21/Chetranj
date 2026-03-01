@@ -50,6 +50,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const newGame = new Chess(payload.fen);
         setGame(newGame);
       })
+      .on('broadcast', { event: 'request_color' }, ({ payload }) => {
+        // another client asked what colour I am; reply only if I actually
+        // know it and I'm not the requester.
+        if (payload.playerId !== playerId && color !== null) {
+          channel.send({
+            type: 'broadcast',
+            event: 'color_picked',
+            payload: { playerId, color }
+          });
+        }
+      })
       .on('broadcast', { event: 'color_picked' }, ({ payload }) => {
         if (payload.playerId !== playerId) {
            // Opponent picked a colour; we always take the opposite (even if
@@ -81,6 +92,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           await channel.track({ online_at: new Date().toISOString() });
+          // After we are subscribed ask the room for a colour if we don't have one
+          if (color === null) {
+            channel.send({
+              type: 'broadcast',
+              event: 'request_color',
+              payload: { playerId }
+            });
+          }
         }
       });
 

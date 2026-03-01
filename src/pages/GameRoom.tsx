@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Chessboard } from 'react-chessboard';
 import { useGame } from '../lib/gameContext';
 import { Chicha } from '../components/Chicha';
@@ -26,11 +26,20 @@ export const GameRoom: React.FC = () => {
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [optionSquares, setOptionSquares] = useState({});
 
+  const navigate = useNavigate();
+
   useEffect(() => {
     if (roomId) {
       joinRoom(roomId);
     }
   }, [roomId]);
+
+  // if we end up here without a colour, force the user back to the picker
+  useEffect(() => {
+    if (color === null && roomId) {
+      navigate(`/room/${roomId}/color`);
+    }
+  }, [color, roomId, navigate]);
 
   // Logic to calculate and show the "blurry dots"
   function getMoveOptions(square: string) {
