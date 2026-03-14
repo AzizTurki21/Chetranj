@@ -174,11 +174,15 @@ export const GameRoom: React.FC = () => {
         key={color ?? 'none'}
         position={game.fen()} 
         onSquareClick={onSquareClick} // The Click logic
+        onPieceDrop={(from, to) => {
+          makeMove(from, to);
+          return true;
+        }}
         boardOrientation={color === 'b' ? 'black' : 'white'} // The POV logic
         customDarkSquareStyle={{ backgroundColor: '#779556' }}
         customLightSquareStyle={{ backgroundColor: '#ebecd0' }}
         customSquareStyles={optionSquares} // The "Blurry Dots"
-        arePiecesDraggable={false} // Disable Dragging
+        arePiecesDraggable={true} // Enable Dragging
         animationDuration={300}
       />
     );
