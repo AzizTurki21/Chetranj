@@ -3,30 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useGame } from '../lib/gameContext';
 import { Chessboard as ChessboardComponent } from 'react-chessboard';
 
-// Bypass TypeScript strictness - react-chessboard types are wrong
 const Chessboard = ChessboardComponent as any;
-
-// Convert what user SEES on screen to what chess.js UNDERSTANDS
-function visualToChess(square: string, playerColor: 'w' | 'b' | null): string {
-  if (playerColor !== 'b') return square; // White player: no change
-  const files = 'abcdefgh';
-  const file = square[0];      // 'a' to 'h'
-  const rank = square[1];      // '1' to '8'
-  const flippedFile = files[7 - files.indexOf(file)]; // 'a'→'h', 'b'→'g', etc.
-  const flippedRank = String(9 - parseInt(rank));     // '1'→'8', '2'→'7', etc.
-  return flippedFile + flippedRank;
-}
-
-// Convert chess.js move BACK to what user sees on their screen
-function chessToVisual(square: string, playerColor: 'w' | 'b' | null): string {
-  if (playerColor !== 'b') return square; // White player: no change
-  const files = 'abcdefgh';
-  const file = square[0];
-  const rank = square[1];
-  const flippedFile = files[7 - files.indexOf(file)];
-  const flippedRank = String(9 - parseInt(rank));
-  return flippedFile + flippedRank;
-}
 
 export const GameRoom: React.FC = () => {
   const { roomId } = useParams();
@@ -49,11 +26,8 @@ export const GameRoom: React.FC = () => {
   }, [color, roomId, navigate, opponentConnected]);
 
   function getMoveOptions(square: string) {
-    // FIX: Convert visual square to chess.js square
-    const chessSquare = visualToChess(square, color);
-    
     const moves = game.moves({
-      square: chessSquare as any,
+      square: square as any,
       verbose: true,
     });
     
@@ -63,24 +37,19 @@ export const GameRoom: React.FC = () => {
     }
 
     const newSquares: Record<string, any> = {};
-    
-    // FIX: Convert chess.js destinations back to visual squares for the dots
     moves.forEach((move) => {
-      const visualSquare = chessToVisual(move.to, color);
-      newSquares[visualSquare] = {
+      newSquares[move.to] = {
         background: "radial-gradient(circle, rgba(0,0,0,.2) 20%, transparent 20%)",
         borderRadius: "50%",
       };
     });
     
-    // Highlight selected piece (visual square)
     newSquares[square] = { background: "rgba(255, 255, 0, 0.4)" };
     setOptionSquares(newSquares);
     return true;
   }
 
   function onSquareClick(square: string) {
-    // Game over / turn checks
     if (!opponentConnected) {
       if (status === 'finished' || game.isGameOver()) return;
     } else {
@@ -89,25 +58,18 @@ export const GameRoom: React.FC = () => {
       if (status === 'finished' || game.isGameOver()) return;
     }
 
-    // Step 1: Select a piece
     if (!moveFrom) {
       const hasOptions = getMoveOptions(square);
       if (hasOptions) setMoveFrom(square);
       return;
     }
 
-    // Step 2: Try to move
-    // FIX: Convert BOTH squares from visual to chess.js before moving
-    const fromChess = visualToChess(moveFrom, color);
-    const toChess = visualToChess(square, color);
-    
-    const moveSuccess = makeMove(fromChess, toChess);
+    const moveSuccess = makeMove(moveFrom, square);
 
     if (moveSuccess) {
       setMoveFrom(null);
       setOptionSquares({});
     } else {
-      // Try selecting a different piece
       const hasOptions = getMoveOptions(square);
       if (hasOptions) {
         setMoveFrom(square);
@@ -128,7 +90,6 @@ export const GameRoom: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-900 text-stone-100 flex flex-col items-center justify-center p-4">
-      {/* Header */}
       <div className="w-full max-w-lg mb-4 flex flex-col items-center gap-2">
         <div className="flex items-center gap-3">
           <span className="text-sm font-mono bg-stone-800 px-3 py-1 rounded">
@@ -146,7 +107,6 @@ export const GameRoom: React.FC = () => {
         </div>
       </div>
 
-      {/* Status */}
       <div className="mb-4 text-center">
         {isGameOver ? (
           <div>
@@ -167,7 +127,6 @@ export const GameRoom: React.FC = () => {
         )}
       </div>
 
-      {/* Board */}
       <div className="w-full max-w-[500px] aspect-square">
         <Chessboard
           id="chetranj-board"
@@ -182,7 +141,6 @@ export const GameRoom: React.FC = () => {
         />
       </div>
 
-      {/* Player info */}
       <div className="mt-4 text-center">
         <p className="text-sm text-stone-400">
           You are playing: <span className="font-bold text-white">{color === 'w' ? 'White' : color === 'b' ? 'Black' : 'Not selected'}</span>
