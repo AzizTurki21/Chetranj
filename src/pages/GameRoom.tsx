@@ -26,11 +26,21 @@ export const GameRoom: React.FC = () => {
   }, [color, roomId, navigate, opponentConnected]);
 
   function getMoveOptions(square: string) {
+    console.log('=== GET MOVE OPTIONS ===');
+    console.log('Square:', square);
+    console.log('Player color:', color);
+    console.log('Game turn:', game.turn());
+    console.log('FEN:', game.fen());
+    console.log('Piece at square:', game.get(square as any));
+
     const moves = game.moves({
       square: square as any,
       verbose: true,
     });
-    
+
+    console.log('Valid moves found:', moves.length);
+    console.log('Moves:', moves.map(m => `${m.from}→${m.to}`));
+
     if (moves.length === 0) {
       setOptionSquares({});
       return false;
@@ -43,28 +53,53 @@ export const GameRoom: React.FC = () => {
         borderRadius: "50%",
       };
     });
-    
+
     newSquares[square] = { background: "rgba(255, 255, 0, 0.4)" };
     setOptionSquares(newSquares);
     return true;
   }
 
   function onSquareClick(square: string) {
+    console.log('=== ON SQUARE CLICK ===');
+    console.log('Clicked square:', square);
+    console.log('Player color:', color);
+    console.log('Game turn:', turn);
+    console.log('Opponent connected:', opponentConnected);
+    console.log('Status:', status);
+    console.log('Is game over:', game.isGameOver());
+    console.log('moveFrom:', moveFrom);
+
     if (!opponentConnected) {
-      if (status === 'finished' || game.isGameOver()) return;
+      if (status === 'finished' || game.isGameOver()) {
+        console.log('BLOCKED: game over (solo mode)');
+        return;
+      }
     } else {
-      if (!color) return;
-      if (turn !== color) return;
-      if (status === 'finished' || game.isGameOver()) return;
+      if (!color) {
+        console.log('BLOCKED: no color selected');
+        return;
+      }
+      if (turn !== color) {
+        console.log('BLOCKED: not your turn');
+        return;
+      }
+      if (status === 'finished' || game.isGameOver()) {
+        console.log('BLOCKED: game over');
+        return;
+      }
     }
 
     if (!moveFrom) {
+      console.log('Selecting piece...');
       const hasOptions = getMoveOptions(square);
+      console.log('Has options:', hasOptions);
       if (hasOptions) setMoveFrom(square);
       return;
     }
 
+    console.log('Attempting move from', moveFrom, 'to', square);
     const moveSuccess = makeMove(moveFrom, square);
+    console.log('Move success:', moveSuccess);
 
     if (moveSuccess) {
       setMoveFrom(null);
