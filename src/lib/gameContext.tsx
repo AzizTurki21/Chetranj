@@ -66,12 +66,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       })
       .on('broadcast', { event: 'color_picked' }, ({ payload }) => {
-        if (payload.playerId !== playerId) {
-           // Opponent picked a colour; we always take the opposite (even if
-           // our own colour was previously set incorrectly).  This handles the
-           // case where the joining client picked the same colour as the host
-           // before the broadcast arrived.
-           setColor(payload.color === 'w' ? 'b' : 'w');
+        if (payload.playerId !== playerId && colorRef.current === null) {
+          const assignedColor = payload.color === 'w' ? 'b' : 'w';
+          colorRef.current = assignedColor;
+          setColor(assignedColor);
         }
       })
       // 1. Updated Presence Listener
