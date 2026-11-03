@@ -7,7 +7,7 @@ const Chessboard = ChessboardComponent as any;
 
 export const GameRoom: React.FC = () => {
   const { roomId } = useParams();
-  const { game, color, turn, makeMove, status, winner, opponentConnected, joinRoom } = useGame();
+  const { game, color, turn, makeMove, status, winner, opponentConnected, multiplayerConfigured, joinRoom } = useGame();
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [optionSquares, setOptionSquares] = useState<Record<string, any>>({});
   const [copied, setCopied] = useState(false);
@@ -138,7 +138,11 @@ export const GameRoom: React.FC = () => {
           </button>
         </div>
         <div className={`text-sm ${opponentConnected ? 'text-green-400' : 'text-yellow-400'}`}>
-          {opponentConnected ? 'Opponent Online' : 'Waiting for opponent...'}
+          {!multiplayerConfigured
+            ? 'Multiplayer is not configured for this deployment'
+            : opponentConnected
+              ? 'Opponent Online'
+              : 'Waiting for opponent to join...'}
         </div>
       </div>
 
