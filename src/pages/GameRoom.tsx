@@ -7,7 +7,7 @@ const Chessboard = ChessboardComponent as any;
 
 export const GameRoom: React.FC = () => {
   const { roomId } = useParams();
-  const { game, color, turn, makeMove, status, winner, opponentConnected, joinRoom } = useGame();
+  const { game, color, turn, makeMove, status, winner, opponentConnected, multiplayerConfigured, joinRoom } = useGame();
   const [moveFrom, setMoveFrom] = useState<string | null>(null);
   const [optionSquares, setOptionSquares] = useState<Record<string, any>>({});
   const [copied, setCopied] = useState(false);
@@ -138,7 +138,11 @@ export const GameRoom: React.FC = () => {
           </button>
         </div>
         <div className={`text-sm ${opponentConnected ? 'text-green-400' : 'text-yellow-400'}`}>
-          {opponentConnected ? 'Opponent Online' : 'Waiting for opponent...'}
+          {!multiplayerConfigured
+            ? 'Multiplayer is not configured for this deployment'
+            : opponentConnected
+              ? 'Opponent Online'
+              : 'Waiting for opponent to join...'}
         </div>
       </div>
 
@@ -164,15 +168,25 @@ export const GameRoom: React.FC = () => {
 
       <div className="w-full max-w-[500px] aspect-square">
         <Chessboard
-          id="chetranj-board"
-          position={game.fen()}
-          onSquareClick={onSquareClick}
-          boardOrientation={color === 'b' ? 'black' : 'white'}
-          customDarkSquareStyle={{ backgroundColor: '#779556' }}
-          customLightSquareStyle={{ backgroundColor: '#ebecd0' }}
-          customSquareStyles={optionSquares}
-          arePiecesDraggable={false}
-          animationDuration={300}
+          options={{
+            id: 'chetranj-board',
+            position: game.fen(),
+            onSquareClick: ({ square }: { square: string }) => onSquareClick(square),
+            onPieceDrop: ({
+              sourceSquare,
+              targetSquare,
+            }: { sourceSquare: string; targetSquare: string | null }) => {
+              if (!targetSquare || isGameOver) return false;
+              if (opponentConnected && (!color || turn !== color)) return false;
+              return makeMove(sourceSquare, targetSquare);
+            },
+            boardOrientation: color === 'b' ? 'black' : 'white',
+            darkSquareStyle: { backgroundColor: '#779556' },
+            lightSquareStyle: { backgroundColor: '#ebecd0' },
+            squareStyles: optionSquares,
+            allowDragging: true,
+            animationDurationInMs: 300,
+          }}
         />
       </div>
 

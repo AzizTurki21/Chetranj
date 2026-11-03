@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { Chess } from 'chess.js';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -17,6 +17,8 @@ interface GameContextType {
   makeMove: (from: string, to: string, promotion?: string) => boolean;
   resetGame: () => void;
   opponentConnected: boolean;
+  canPickColor: boolean;
+  multiplayerConfigured: boolean;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -26,6 +28,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [roomId, setRoomId] = useState<string | null>(null);
   const [playerId] = useState(() => localStorage.getItem('chetranj_pid') || uuidv4());
   const [color, setColor] = useState<'w' | 'b' | null>(null);
+  const colorRef = useRef<'w' | 'b' | null>(null);
+  const channelRef = useRef<any>(null);
+  const [canPickColor, setCanPickColor] = useState(false);
   const [opponentConnected, setOpponentConnected] = useState(false);
   const [status, setStatus] = useState('waiting'); // waiting, playing
   
@@ -53,21 +58,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .on('broadcast', { event: 'request_color' }, ({ payload }) => {
         // another client asked what colour I am; reply only if I actually
         // know it and I'm not the requester.
-        if (payload.playerId !== playerId && color !== null) {
+        if (payload.playerId !== playerId && colorRef.current !== null) {
           channel.send({
             type: 'broadcast',
             event: 'color_picked',
-            payload: { playerId, color }
+            payload: { playerId, color: colorRef.current }
           });
         }
       })
       .on('broadcast', { event: 'color_picked' }, ({ payload }) => {
-        if (payload.playerId !== playerId) {
-           // Opponent picked a colour; we always take the opposite (even if
-           // our own colour was previously set incorrectly).  This handles the
-           // case where the joining client picked the same colour as the host
-           // before the broadcast arrived.
-           setColor(payload.color === 'w' ? 'b' : 'w');
+        if (payload.playerId !== playerId && colorRef.current === null) {
+          const assignedColor = payload.color === 'w' ? 'b' : 'w';
+          colorRef.current = assignedColor;
+          setColor(assignedColor);
         }
       })
       // 1. Updated Presence Listener
@@ -81,41 +84,63 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // CRITICAL: If I am the host and I have a color, 
   // broadcast it so the newcomer knows what color THEY are.
-  if (count > 1 && color !== null) {
+  if (count > 1 && colorRef.current !== null) {
     channel.send({
       type: 'broadcast',
       event: 'color_picked',
-      payload: { playerId, color: color }
+      payload: { playerId, color: colorRef.current }
     });
   }
-})
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await channel.track({ online_at: new Date().toISOString() });
-          // After we are subscribed ask the room for a colour if we don't have one
-          if (color === null) {
-            channel.send({
-              type: 'broadcast',
-              event: 'request_color',
-              payload: { playerId }
-            });
-          }
+});
+
+    channelRef.current = channel;
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({ online_at: new Date().toISOString() });
+        // A color may be selected before the channel finishes subscribing.
+        if (colorRef.current !== null) {
+          channel.send({
+            type: 'broadcast',
+            event: 'color_picked',
+            payload: { playerId, color: colorRef.current }
+          });
+        } else {
+          channel.send({
+            type: 'broadcast',
+            event: 'request_color',
+            payload: { playerId }
+          });
         }
-      });
+      }
+    });
 
     return () => {
+      if (channelRef.current === channel) channelRef.current = null;
       supabase.removeChannel(channel);
     };
-  }, [roomId, playerId, color]);
+  }, [roomId, playerId]);
 
   const createRoom = async () => {
     const newRoomId = uuidv4().slice(0, 8);
+    sessionStorage.setItem('chetranj_host_room', newRoomId);
+    setCanPickColor(true);
     setRoomId(newRoomId);
+    colorRef.current = null;
+    setColor(null);
+    setGame(new Chess());
+    setOpponentConnected(false);
     setStatus('waiting');
     return newRoomId;
   };
 
   const joinRoom = async (id: string) => {
+  if (id !== roomId) {
+    setCanPickColor(sessionStorage.getItem('chetranj_host_room') === id);
+    colorRef.current = null;
+    setColor(null);
+    setGame(new Chess());
+    setOpponentConnected(false);
+  }
   setRoomId(id);
   // In multiplayer mode we don't pre‑assign a color to the joining player.
   // The room owner will pick a colour and broadcast it; the newcomer will
@@ -126,21 +151,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   if (!isSupabaseConfigured()) {
       if (!color) setColor('b'); // second player on the same device
       setStatus('playing');
-      setOpponentConnected(true);
   }
 };
 
   const pickColor = (c: 'w' | 'b') => {
-    // once a colour has been assigned we ignore further requests
+    // In online rooms only the room creator chooses; the joiner receives the
+    // opposite side from the creator's subscribed room channel.
+    if (isSupabaseConfigured() && !canPickColor) return;
     if (color !== null) return;
 
+    colorRef.current = c;
     setColor(c);
-    if (isSupabaseConfigured() && roomId) {
-        supabase.channel(`room:${roomId}`).send({
-            type: 'broadcast',
-            event: 'color_picked',
-            payload: { playerId, color: c }
-        });
+    if (isSupabaseConfigured() && roomId && channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'color_picked',
+        payload: { playerId, color: c }
+      });
     } else {
         // Local mode: if I pick white, the "opponent" is black. 
         // Actually for local hotseat, color doesn't matter as much, 
@@ -155,8 +182,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (result) {
         setGame(gameCopy);
         
-        if (isSupabaseConfigured() && roomId) {
-            supabase.channel(`room:${roomId}`).send({
+        if (isSupabaseConfigured() && roomId && channelRef.current) {
+            channelRef.current.send({
                 type: 'broadcast',
                 event: 'move',
                 payload: { fen: gameCopy.fen() }
@@ -188,7 +215,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     pickColor,
     makeMove,
     resetGame,
-    opponentConnected
+    opponentConnected,
+    canPickColor,
+    multiplayerConfigured: Boolean(isSupabaseConfigured())
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
