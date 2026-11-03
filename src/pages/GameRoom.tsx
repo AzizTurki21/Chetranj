@@ -164,15 +164,25 @@ export const GameRoom: React.FC = () => {
 
       <div className="w-full max-w-[500px] aspect-square">
         <Chessboard
-          id="chetranj-board"
-          position={game.fen()}
-          onSquareClick={onSquareClick}
-          boardOrientation={color === 'b' ? 'black' : 'white'}
-          customDarkSquareStyle={{ backgroundColor: '#779556' }}
-          customLightSquareStyle={{ backgroundColor: '#ebecd0' }}
-          customSquareStyles={optionSquares}
-          arePiecesDraggable={false}
-          animationDuration={300}
+          options={{
+            id: 'chetranj-board',
+            position: game.fen(),
+            onSquareClick: ({ square }: { square: string }) => onSquareClick(square),
+            onPieceDrop: ({
+              sourceSquare,
+              targetSquare,
+            }: { sourceSquare: string; targetSquare: string | null }) => {
+              if (!targetSquare || isGameOver) return false;
+              if (opponentConnected && (!color || turn !== color)) return false;
+              return makeMove(sourceSquare, targetSquare);
+            },
+            boardOrientation: color === 'b' ? 'black' : 'white',
+            darkSquareStyle: { backgroundColor: '#779556' },
+            lightSquareStyle: { backgroundColor: '#ebecd0' },
+            squareStyles: optionSquares,
+            allowDragging: true,
+            animationDurationInMs: 300,
+          }}
         />
       </div>
 
