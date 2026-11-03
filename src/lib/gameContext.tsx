@@ -17,6 +17,7 @@ interface GameContextType {
   makeMove: (from: string, to: string, promotion?: string) => boolean;
   resetGame: () => void;
   opponentConnected: boolean;
+  canPickColor: boolean;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -28,6 +29,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [color, setColor] = useState<'w' | 'b' | null>(null);
   const colorRef = useRef<'w' | 'b' | null>(null);
   const channelRef = useRef<any>(null);
+  const [canPickColor, setCanPickColor] = useState(false);
   const [opponentConnected, setOpponentConnected] = useState(false);
   const [status, setStatus] = useState('waiting'); // waiting, playing
   
@@ -122,6 +124,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const createRoom = async () => {
     const newRoomId = uuidv4().slice(0, 8);
+    sessionStorage.setItem('chetranj_host_room', newRoomId);
+    setCanPickColor(true);
     setRoomId(newRoomId);
     colorRef.current = null;
     setColor(null);
@@ -133,6 +137,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const joinRoom = async (id: string) => {
   if (id !== roomId) {
+    setCanPickColor(sessionStorage.getItem('chetranj_host_room') === id);
     colorRef.current = null;
     setColor(null);
     setGame(new Chess());
@@ -153,7 +158,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 };
 
   const pickColor = (c: 'w' | 'b') => {
-    // once a colour has been assigned we ignore further requests
+    // In online rooms only the room creator chooses; the joiner receives the
+    // opposite side from the creator's subscribed room channel.
+    if (isSupabaseConfigured() && !canPickColor) return;
     if (color !== null) return;
 
     colorRef.current = c;
@@ -178,8 +185,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (result) {
         setGame(gameCopy);
         
-        if (isSupabaseConfigured() && roomId) {
-            supabase.channel(`room:${roomId}`).send({
+        if (isSupabaseConfigured() && roomId && channelRef.current) {
+            channelRef.current.send({
                 type: 'broadcast',
                 event: 'move',
                 payload: { fen: gameCopy.fen() }
@@ -211,7 +218,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     pickColor,
     makeMove,
     resetGame,
-    opponentConnected
+    opponentConnected,
+    canPickColor
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
