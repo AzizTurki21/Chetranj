@@ -4,7 +4,7 @@ import { useGame } from '../lib/gameContext';
 
 export const ColorSelection: React.FC = () => {
   const { roomId } = useParams();
-  const { pickColor, color } = useGame();
+  const { pickColor, color, canPickColor } = useGame();
   const navigate = useNavigate();
 
   // if a colour has already been determined (e.g. the host picked white and
@@ -24,6 +24,7 @@ export const ColorSelection: React.FC = () => {
     <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-12">
       <h2 className="text-3xl font-serif text-amber-200">Choose Your Side</h2>
       
+      {canPickColor ? (
       <div className="flex flex-col md:flex-row gap-8">
         <button
           onClick={() => handleSelect('w')}
@@ -47,6 +48,11 @@ export const ColorSelection: React.FC = () => {
           </span>
         </button>
       </div>
+      ) : (
+        <p className="max-w-md text-center text-stone-300">
+          Waiting for the room creator to choose a side. You will be assigned the opposite color automatically.
+        </p>
+      )}
     </div>
   );
 };
