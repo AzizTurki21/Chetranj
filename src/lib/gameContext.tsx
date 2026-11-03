@@ -18,6 +18,7 @@ interface GameContextType {
   resetGame: () => void;
   opponentConnected: boolean;
   canPickColor: boolean;
+  multiplayerConfigured: boolean;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -150,7 +151,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   if (!isSupabaseConfigured()) {
       if (!color) setColor('b'); // second player on the same device
       setStatus('playing');
-      setOpponentConnected(true);
   }
 };
 
@@ -216,7 +216,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     makeMove,
     resetGame,
     opponentConnected,
-    canPickColor
+    canPickColor,
+    multiplayerConfigured: Boolean(isSupabaseConfigured())
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
