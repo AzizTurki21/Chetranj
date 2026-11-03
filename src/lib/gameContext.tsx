@@ -90,8 +90,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       payload: { playerId, color: colorRef.current }
     });
   }
-})
-    });
+});
 
     channelRef.current = channel;
     channel.subscribe(async (status) => {
